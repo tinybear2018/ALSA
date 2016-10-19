@@ -7,7 +7,7 @@ http://blog.csdn.net/qq405180763/article/details/16881047
 	for (pos = list_entry((head)->next, typeof(*pos), member);	\
 	     &pos->member != (head); 	\
 	     pos = list_entry(pos->member.next, typeof(*pos), member))
-		 
+ 
 		 list_for_each_entry(dev, &card->devices, list)
 					for (pos = list_entry((head)->next, typeof(*pos), member);	\
 					 &pos->member != (head); 	\
@@ -23,7 +23,7 @@ err = snd_card_create(index, id, THIS_MODULE, sizeof(struct snd_ad1816a), &card)
 	int snd_card_create(int idx, const char *xid,
 		    struct module *module, int extra_size,
 		    struct snd_card **card_ret)
-	(1)	
+	(1)
 	card = kzalloc(sizeof(*card) + extra_size, GFP_KERNEL);
 	(2)some init
 		card->number = idx;  
