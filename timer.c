@@ -1,3 +1,10 @@
+/***** HZ *****/
+/* times of hardwae's interrupt per seconds */
+
+/***** jiffies *****/
+/*  secods * HZ  **/
+
+
 1 Timer 
 	(1) struct timer_list stimer;
 		stimer.data = 0;
