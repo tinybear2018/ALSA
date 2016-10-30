@@ -97,8 +97,10 @@ soc_probe_link_dais ->
 									  SNDRV_PCM_STREAM_CAPTURE
 									
 				3) snd_device_new  add the device in the card//
-												card->device
-													list the logic device ----snd_device
+						dev->device_data = device_data;//device_data= pcm
+						dev->ops = ops;
+						list_add(&dev->list, &card->devices);	/* add to the head of list */
+											list the logic device ----snd_device
 								
 								(1)     struct snd_minor {  
 									    int type;           /* SNDRV_DEVICE_TYPE_XXX */  
@@ -112,25 +114,29 @@ soc_probe_link_dais ->
 									
 									playback  --  pcmCxDxp，通常系统中只有一各声卡和一个pcm，它就是pcmC0D0p
 									capture  --  pcmCxDxc，通常系统中只有一各声卡和一个pcm，它就是pcmC0D0c 
-								(3)snd_pcm_f_ops  
+								(3)snd_pcm_f_ops  -  open in hal call
 									snd_open的时候根据 minor信息调用的是这里的？那么下面的那个set_ops是干吗的！
-				snd_pcm_set_ops register the ops 
-					stream->substream->ops
+
+
+				  4)snd_pcm_set_ops register the ops 
+				     stream->substream->ops
 		
 
 /*******CONTROL*******/
 1) logic device
 snd_card_new->
 	snd_ctl_create->
-			static struct snd_device_ops ops = {
+			(1) static struct snd_device_ops ops = {
 				.dev_free = snd_ctl_dev_free,
 				.dev_register =	snd_ctl_dev_register,
 				.dev_disconnect = snd_ctl_dev_disconnect,
 			};
-			return snd_device_new(card, SNDRV_DEV_CONTROL, card, &ops); 
+			(2) snd_device_new(card, SNDRV_DEV_CONTROL, card, &ops); 
 						card->device
 						list the logic device ----snd_device
-
+			(3)snd_ctl_dev_register		
+                   			snd_register_device(SNDRV_DEVICE_TYPE_CONTROL, card, -1,
+				       			snd_ctl_f_ops, card, name)) < 0)
 2)concrete kcontrol snd_kcontrol_new
 			snd_soc_add_controls->
 						err = snd_ctl_add(card, snd_soc_cnew(control, data,
@@ -186,7 +192,60 @@ struct snd_kcontrol_new {
 /*****Machine*****/
 
 /*****Codec*****/
+	ret = snd_soc_register_codec(&pdev->dev,
+				     &soc_codec_dev_sprd_codec,
+				     sprd_codec_dai,
+				     ARRAY_SIZE(sprd_codec_dai));
 
+	static struct snd_soc_codec_driver soc_codec_dev_sprd_codec = {
+		.probe = sprd_codec_soc_probe,
+		.remove = sprd_codec_soc_remove,
+		.suspend = sprd_codec_soc_suspend,
+		.resume = sprd_codec_soc_resume,
+		.read = sprd_codec_read,
+		.write = sprd_codec_write,
+		.reg_word_size = sizeof(u16),
+		.reg_cache_step = 2,
+		.dapm_widgets = sprd_codec_dapm_widgets,
+		.num_dapm_widgets = ARRAY_SIZE(sprd_codec_dapm_widgets),
+		.dapm_routes = sprd_codec_intercon,
+		.num_dapm_routes = ARRAY_SIZE(sprd_codec_intercon),
+		.controls = sprd_codec_snd_controls,
+		.num_controls = ARRAY_SIZE(sprd_codec_snd_controls),
+	};
+
+static struct snd_soc_dai_driver sprd_codec_dai[] = {
+	{
+	 .name = "sprd-codec-i2s",
+	 .playback = {
+		      .stream_name = "Playback",
+
+		      },
+	 .capture = {
+		     .stream_name = "Main-Capture",
+		     },
+	 .ops = &sprd_codec_dai_ops,
+	 },
+	{
+	 .name = "sprd-codec-vaudio",
+	 .playback = {
+		      .stream_name = "Playback-Vaudio",
+		      },
+	 .capture = {
+		     .stream_name = "Main-Capture-Vaudio",
+		     },
+	 .ops = &sprd_codec_dai_ops,
+	 },
+	{
+	 .id = SPRD_CODEC_IIS1_ID,
+	 .name = "codec-i2s-ext",
+	 .capture = {
+		     .stream_name = "Ext-Capture",
+
+		     },
+	 .ops = &sprd_codec_dai_ops,
+	 },
+}
 /*****Platform*****/
 
 /*****DAPM*****/
@@ -283,11 +342,30 @@ static struct snd_soc_dai_ops sprd_i2s_dai_ops = {
 
 
 
+/****Reigster Card****/
 
+(1)for (i = 0; i < card->num_links; i++) {
+		ret = soc_bind_dai_link(card, i);
+	}
+		list_for_each_entry(cpu_dai, &dai_list, list)
 
+		list_for_each_entry(codec, &codec_list, list)
 
+		list_for_each_entry(codec_dai, &dai_list, list) 
 
+		list_for_each_entry(platform, &platform_list, list)
+(2)snd_card_create
+(3)soc_probe_link_dais
+    -->>soc_new_pcm
+                snd_pcm_new
+    		(1)   rtd->ops.open		= soc_pcm_open;
+			rtd->ops.hw_params	= soc_pcm_hw_params;
+			rtd->ops.prepare	= soc_pcm_prepare;
+			rtd->ops.trigger	= soc_pcm_trigger;
+			rtd->ops.hw_free	= soc_pcm_hw_free;
+			rtd->ops.close		= soc_pcm_close;
+			rtd->ops.pointer	= soc_pcm_pointer;
+			rtd->ops.ioctl		= soc_pcm_ioctl;
 
-
-
-
+		(2) snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &rtd->ops);
+		
