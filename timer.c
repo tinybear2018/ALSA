@@ -12,6 +12,7 @@
 		stimer.function = time_handler;
 	(2) in time_handler()
 		1)	mod_timer(&stimer, jiffies + 100); //change value and add it 
+								msecs_to_jiffies(6 * HZ)
 		2) stimer.expires = jiffies + 100;
 		    add_timer(&stimer);
 	(3)del_timer
